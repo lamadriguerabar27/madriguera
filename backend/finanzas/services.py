@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 
-from .models import Bolsillo, Cierre, CierreBolsillo, Configuracion, Egreso
+from .models import Bolsillo, Categoria, Cierre, CierreBolsillo, Configuracion, Egreso
 
 CENT = Decimal("0.01")
 CIEN = Decimal("100")
@@ -34,6 +34,29 @@ def reparto(ventas_bold, efectivo, porcentaje_caja, bolsillos):
     }
 
 
+def egresos_caja(fecha):
+    return Egreso.objects.filter(fecha=fecha, origen=Egreso.CAJA).aggregate(s=Sum("valor"))["s"] or Decimal(0)
+
+
+def usos_categoria(cat):
+    if cat.ambito == Categoria.EGRESO:
+        return Egreso.objects.filter(categoria=cat.slug).count()
+    from costos.models import Insumo, Producto
+
+    modelo = Insumo if cat.ambito == Categoria.INSUMO else Producto
+    return modelo.objects.filter(categoria=cat.slug).count()
+
+
+def mover_categoria(cat, destino):
+    if cat.ambito == Categoria.EGRESO:
+        Egreso.objects.filter(categoria=cat.slug).update(categoria=destino.slug)
+        return
+    from costos.models import Insumo, Producto
+
+    modelo = Insumo if cat.ambito == Categoria.INSUMO else Producto
+    modelo.objects.filter(categoria=cat.slug).update(categoria=destino.slug)
+
+
 @transaction.atomic
 def guardar_cierre(cierre, usuario, recalcular_porcentajes):
     """Calcula y guarda el reparto. Al crear toma la configuración actual; al editar conserva la del día."""
@@ -45,6 +68,11 @@ def guardar_cierre(cierre, usuario, recalcular_porcentajes):
     datos = reparto(cierre.ventas_bold, cierre.efectivo, cierre.porcentaje_caja, fuente)
     for campo in ["caja_vueltas", "transferir", "ingreso_cuenta", "a_bolsillos", "disponible_cuenta"]:
         setattr(cierre, campo, datos[campo])
+    cierre.egresos_caja_dia = egresos_caja(cierre.fecha)
+    if cierre.final_caja is not None:
+        cierre.queda_en_caja = cierre.final_caja - cierre.transferir
+    else:
+        cierre.queda_en_caja = (cierre.inicio_caja or 0) + cierre.caja_vueltas - cierre.egresos_caja_dia
     if not cierre.pk:
         cierre.creado_por = usuario
     cierre.actualizado_por = usuario
@@ -76,7 +104,7 @@ def flujo(desde=None, hasta=None):
     egresos_total = _f(egresos.aggregate(s=Sum("valor"))["s"])
 
     por_categoria = []
-    nombres_cat = dict(Egreso.CATEGORIAS)
+    nombres_cat = Categoria.nombres(Categoria.EGRESO)
     for row in egresos.values("categoria").annotate(total=Sum("valor")).order_by("-total"):
         por_categoria.append({"categoria": row["categoria"], "nombre": nombres_cat.get(row["categoria"], row["categoria"]), "total": _f(row["total"])})
 

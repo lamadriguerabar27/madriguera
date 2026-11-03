@@ -8,6 +8,29 @@ DINERO = {"max_digits": 14, "decimal_places": 2}
 PORCENTAJE = {"max_digits": 5, "decimal_places": 2, "validators": [MinValueValidator(0), MaxValueValidator(100)]}
 
 
+class Categoria(models.Model):
+    """Categorías editables por un administrador para egresos, insumos y productos."""
+
+    EGRESO, INSUMO, PRODUCTO = "egreso", "insumo", "producto"
+    AMBITOS = [(EGRESO, "Egresos"), (INSUMO, "Insumos"), (PRODUCTO, "Productos")]
+
+    ambito = models.CharField(max_length=10, choices=AMBITOS)
+    slug = models.SlugField(max_length=40)
+    nombre = models.CharField(max_length=80)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ambito", "orden", "nombre"]
+        unique_together = [("ambito", "slug")]
+
+    def __str__(self):
+        return f"{self.get_ambito_display()}: {self.nombre}"
+
+    @classmethod
+    def nombres(cls, ambito):
+        return dict(cls.objects.filter(ambito=ambito).values_list("slug", "nombre"))
+
+
 class Configuracion(models.Model):
     """Una sola fila (pk=1) con los parámetros del negocio que edita un administrador."""
 
@@ -61,6 +84,12 @@ class Cierre(models.Model):
     """Cierre de caja de un día. Guarda los porcentajes con los que se calculó."""
 
     fecha = models.DateField(unique=True)
+    inicio_bold = models.DecimalField(default=0, validators=[MinValueValidator(0)], help_text="Saldo en Bold al abrir.", **DINERO)
+    inicio_caja = models.DecimalField(default=0, validators=[MinValueValidator(0)], help_text="Efectivo en caja al abrir.", **DINERO)
+    final_bold = models.DecimalField(null=True, blank=True, validators=[MinValueValidator(0)], help_text="Saldo en Bold al cerrar.", **DINERO)
+    final_caja = models.DecimalField(null=True, blank=True, validators=[MinValueValidator(0)], help_text="Efectivo en caja al cerrar.", **DINERO)
+    egresos_caja_dia = models.DecimalField(default=0, help_text="Egresos pagados de la caja ese día al cerrar.", **DINERO)
+    queda_en_caja = models.DecimalField(default=0, help_text="Lo que debe quedar en caja después de transferir.", **DINERO)
     ventas_bold = models.DecimalField(default=0, validators=[MinValueValidator(0)], **DINERO)
     efectivo = models.DecimalField(default=0, validators=[MinValueValidator(0)], **DINERO)
     porcentaje_caja = models.DecimalField(**PORCENTAJE)
@@ -100,7 +129,7 @@ class CierreBolsillo(models.Model):
 class Egreso(models.Model):
     CAJA, CUENTA, BOLSILLO = "caja", "cuenta", "bolsillo"
     ORIGENES = [(CAJA, "Caja"), (CUENTA, "Cuenta (disponible)"), (BOLSILLO, "Bolsillo")]
-    CATEGORIAS = [
+    CATEGORIAS_INICIALES = [
         ("arriendo_servicios", "Arriendo y servicios"),
         ("proveedores", "Proveedores e insumos"),
         ("nomina", "Nómina"),
@@ -113,7 +142,7 @@ class Egreso(models.Model):
     fecha = models.DateField()
     origen = models.CharField(max_length=10, choices=ORIGENES)
     bolsillo = models.ForeignKey(Bolsillo, null=True, blank=True, on_delete=models.PROTECT, related_name="egresos")
-    categoria = models.CharField(max_length=30, choices=CATEGORIAS, default="otros")
+    categoria = models.CharField(max_length=40, default="otros")
     descripcion = models.CharField(max_length=200)
     valor = models.DecimalField(validators=[MinValueValidator(Decimal("0.01"))], **DINERO)
     factura = models.ForeignKey("costos.Factura", null=True, blank=True, on_delete=models.SET_NULL, related_name="egresos")

@@ -39,7 +39,7 @@ export default function Insumos() {
     ...i, costo_unitario: String(n(i.costo_unitario)), contenido_presentacion: i.contenido_presentacion ? String(n(i.contenido_presentacion)) : '',
     unidad_presentacion: i.unidad_presentacion || 'ml', costo_presentacion: i.costo_presentacion ? String(n(i.costo_presentacion)) : '',
     stock_minimo: String(n(i.stock_minimo)),
-  } : { ...NUEVO });
+  } : { ...NUEVO, categoria: (ops.datos?.categorias_insumo || []).some((c) => c.valor === 'licor') ? 'licor' : ops.datos?.categorias_insumo?.[0]?.valor || '' });
 
   const calc = f ? costoCalculado(f, mlOz) : null;
   const usaPresentacion = f && (f.contenido_presentacion || f.costo_presentacion);
@@ -97,7 +97,7 @@ export default function Insumos() {
             </Campo>
           </div>
           <h3 style={{ margin: '16px 0 6px' }}>Costo</h3>
-          <p style={{ color: 'var(--tinta-suave)', marginBottom: 8 }}>Escribe cómo lo compras (ej. botella de 750 ml a $80.000) y calculamos el costo por {UNIDAD[f.unidad]}. O escribe directamente el costo por unidad.</p>
+          <p style={{ color: 'var(--texto-suave)', marginBottom: 8 }}>Escribe cómo lo compras (ej. botella de 750 ml a $80.000) y calculamos el costo por {UNIDAD[f.unidad]}. O escribe directamente el costo por unidad.</p>
           <div className="form">
             <Campo etiqueta="Contenido de la presentación" className="medio"><input type="number" min="0" step="any" value={f.contenido_presentacion} onChange={(e) => setF({ ...f, contenido_presentacion: e.target.value })} placeholder="750" /></Campo>
             <Campo etiqueta="Medido en" className="corto">
@@ -105,8 +105,8 @@ export default function Insumos() {
                 {(ops.datos?.unidades || []).map((u) => <option key={u.valor} value={u.valor}>{u.nombre}</option>)}
               </select>
             </Campo>
-            <Campo etiqueta="Costo de la presentación" className="medio"><input type="number" min="0" step="100" value={f.costo_presentacion} onChange={(e) => setF({ ...f, costo_presentacion: e.target.value })} placeholder="80000" /></Campo>
-            <span style={{ alignSelf: 'center', color: 'var(--tinta-suave)' }}>o</span>
+            <Campo etiqueta="Costo de la presentación" className="medio"><input type="number" min="0" step="any" value={f.costo_presentacion} onChange={(e) => setF({ ...f, costo_presentacion: e.target.value })} placeholder="80000" /></Campo>
+            <span style={{ alignSelf: 'center', color: 'var(--texto-suave)' }}>o</span>
             <Campo etiqueta={`Costo por ${UNIDAD[f.unidad]}`} className="medio"><input type="number" min="0" step="any" value={usaPresentacion ? (calc ? calc.porUnidad.toFixed(2) : '') : f.costo_unitario} disabled={!!usaPresentacion} onChange={(e) => setF({ ...f, costo_unitario: e.target.value })} /></Campo>
           </div>
           {calc && <p className="aviso info" style={{ marginTop: 10 }}>Cada presentación trae {numero(calc.unidades, 2)} {UNIDAD[f.unidad]}; cada {UNIDAD[f.unidad]} cuesta {pesos(calc.porUnidad)}.</p>}

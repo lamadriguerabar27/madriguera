@@ -62,7 +62,7 @@ export default function Configuracion() {
           <h2>General</h2>
           <div className="form" style={{ marginTop: 12 }}>
             {CAMPOS.map(([k, etiqueta, paso]) => (
-              <Campo key={k} etiqueta={etiqueta} className="medio"><input type="number" min="0" step={paso} value={c[k]} onChange={(e) => setC({ ...c, [k]: e.target.value })} /></Campo>
+              <Campo key={k} etiqueta={etiqueta} className="medio"><input type="number" min="0" step="any" value={c[k]} onChange={(e) => setC({ ...c, [k]: e.target.value })} /></Campo>
             ))}
             <label className="check"><input type="checkbox" checked={!!c.iva_es_costo} onChange={(e) => setC({ ...c, iva_es_costo: e.target.checked })} /> El IVA de las facturas es costo (no lo descontamos)</label>
           </div>
@@ -79,7 +79,7 @@ export default function Configuracion() {
               {filas.map((b, i) => (
                 <tr key={b.id || `n${i}`}>
                   <td><input className="entrada" value={b.nombre} onChange={(e) => set(i, 'nombre', e.target.value)} /></td>
-                  <td style={{ width: 110 }}><input className="entrada" type="number" min="0" max="100" step="0.5" value={b.porcentaje} onChange={(e) => set(i, 'porcentaje', e.target.value)} /></td>
+                  <td style={{ width: 110 }}><input className="entrada" type="number" min="0" max="100" step="any" value={b.porcentaje} onChange={(e) => set(i, 'porcentaje', e.target.value)} /></td>
                   <td><input type="checkbox" checked={b.se_vacia_cada_mes} onChange={(e) => set(i, 'se_vacia_cada_mes', e.target.checked)} aria-label="Se vacía cada mes" /></td>
                   <td><input type="checkbox" checked={b.activo} onChange={(e) => set(i, 'activo', e.target.checked)} aria-label="Activo" /></td>
                   <td><button type="button" className="boton peligro chico" onClick={() => quitar(b, i)}>Quitar</button></td>

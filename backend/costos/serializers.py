@@ -3,17 +3,18 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework import serializers
 
-from finanzas.models import Configuracion
+from finanzas.models import Categoria, Configuracion
+from finanzas.serializers import CategoriaCampoMixin
 
 from . import services
 from .models import Factura, FacturaItem, Insumo, MovimientoInventario, Producto, RecetaItem, VentaProducto
 from .unidades import ConversionError, convertir
 
 
-class InsumoSerializer(serializers.ModelSerializer):
+class InsumoSerializer(CategoriaCampoMixin, serializers.ModelSerializer):
+    AMBITO = Categoria.INSUMO
     stock_bajo = serializers.SerializerMethodField()
     presentaciones_en_stock = serializers.SerializerMethodField()
-    categoria_nombre = serializers.CharField(source="get_categoria_display", read_only=True)
 
     class Meta:
         model = Insumo
@@ -85,15 +86,21 @@ class RecetaItemSerializer(serializers.ModelSerializer):
         fields = ["insumo", "cantidad"]
 
 
-class ProductoSerializer(serializers.ModelSerializer):
+class ProductoSerializer(CategoriaCampoMixin, serializers.ModelSerializer):
+    AMBITO = Categoria.PRODUCTO
     receta = RecetaItemSerializer(many=True, required=False)
     costeo = serializers.SerializerMethodField()
-    categoria_nombre = serializers.CharField(source="get_categoria_display", read_only=True)
 
     class Meta:
         model = Producto
-        fields = ["id", "nombre", "categoria", "categoria_nombre", "descripcion", "precio_venta", "margen_objetivo",
-                  "activo", "receta", "costeo", "actualizado"]
+        fields = ["id", "nombre", "categoria", "categoria_nombre", "tipo", "costo_compra", "unidades_por_compra", "descripcion",
+                  "precio_venta", "margen_objetivo", "activo", "receta", "costeo", "actualizado"]
+
+    def validate(self, data):
+        tipo = data.get("tipo", getattr(self.instance, "tipo", Producto.RECETA))
+        if tipo == Producto.REVENTA and data.get("costo_compra", getattr(self.instance, "costo_compra", None)) is None:
+            raise serializers.ValidationError({"costo_compra": "Escribe cuánto te cuesta la presentación."})
+        return data
 
     def get_costeo(self, obj):
         return services.costeo_producto(obj, self.context.get("cfg"))

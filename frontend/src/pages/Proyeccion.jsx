@@ -49,7 +49,7 @@ export default function Proyeccion() {
             </tbody>
           </table>
         </div>
-        <p style={{ marginTop: 10, color: 'var(--tinta-suave)', fontSize: '.88rem' }}>
+        <p style={{ marginTop: 10, color: 'var(--texto-suave)', fontSize: '.88rem' }}>
           Supone que las ventas entran parejo durante el mes, que la tasa se mantiene ({pct((Math.pow(1 + d.tasa_mensual, 12) - 1) * 100, 1)} E.A.) y que el efectivo dejado en caja no pasa por los bolsillos.
         </p>
       </section>

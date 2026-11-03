@@ -20,8 +20,8 @@ export default function Login() {
   return (
     <div className="login">
       <form className="tarjeta" onSubmit={enviar}>
-        <h1>🐇 La Madriguera</h1>
-        <p style={{ color: 'var(--tinta-suave)' }}>Entra con el usuario que te dio un administrador.</p>
+        <img className="logo" src="/logo-completo.webp" alt="La Madriguera, café bar Bogotá" />
+        <p style={{ color: 'var(--texto-suave)', textAlign: 'center' }}>Entra con el usuario que te dio un administrador.</p>
         <div className="form">
           <Campo etiqueta="Usuario"><input autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} required /></Campo>
           <Campo etiqueta="Contraseña"><input type="password" autoComplete="current-password" value={p} onChange={(e) => setP(e.target.value)} required /></Campo>

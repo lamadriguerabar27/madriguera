@@ -75,7 +75,7 @@ export default function Ventas() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
               {lista.map((p) => (
                 <label key={p.id} className="campo" style={{ border: '1px solid var(--linea)', borderRadius: 8, padding: 8 }}>
-                  <span style={{ color: 'var(--tinta)' }}>{p.nombre} <small style={{ color: 'var(--tinta-suave)' }}>{pesos(p.precio_venta)}</small></span>
+                  <span style={{ color: 'var(--texto)' }}>{p.nombre} <small style={{ color: 'var(--texto-suave)' }}>{pesos(p.precio_venta)}</small></span>
                   <input type="number" min="0" step="1" inputMode="numeric" placeholder="0" value={cant[p.id] || ''} onChange={(e) => setCant({ ...cant, [p.id]: e.target.value })} />
                 </label>
               ))}

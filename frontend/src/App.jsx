@@ -3,6 +3,7 @@ import { useAuth } from './auth.jsx';
 import Layout from './components/Layout.jsx';
 import Analitica from './pages/Analitica.jsx';
 import Carta from './pages/Carta.jsx';
+import Categorias from './pages/Categorias.jsx';
 import Cierre from './pages/Cierre.jsx';
 import Configuracion from './pages/Configuracion.jsx';
 import Egresos from './pages/Egresos.jsx';
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="perfil" element={<Perfil />} />
         {esAdmin && <Route path="configuracion" element={<Configuracion />} />}
         {esAdmin && <Route path="usuarios" element={<Usuarios />} />}
+        {esAdmin && <Route path="categorias" element={<Categorias />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

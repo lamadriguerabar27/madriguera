@@ -25,7 +25,7 @@ export default function Perfil() {
         <h2>{`${usuario.first_name} ${usuario.last_name}`.trim() || usuario.username}</h2>
         <p style={{ marginTop: 6 }}>Usuario: <strong>{usuario.username}</strong></p>
         <p>Rol: <strong>{esAdmin ? 'Administrador' : 'Colaborador'}</strong></p>
-        <p style={{ marginTop: 8, color: 'var(--tinta-suave)' }}>
+        <p style={{ marginTop: 8, color: 'var(--texto-suave)' }}>
           {esAdmin
             ? 'Puedes cambiar la configuración, los bolsillos, costos y precios, gestionar usuarios y borrar registros.'
             : 'Puedes registrar cierres, egresos y ventas, y consultar todos los reportes. Para cambiar configuración o precios, pide ayuda a un administrador.'}

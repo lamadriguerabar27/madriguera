@@ -152,7 +152,7 @@ function Editor({ f, setF, ins, cfg, ops, bols, esAdmin, onGuardar, onAplicar, o
           <Campo etiqueta="Número" className="medio"><input value={f.numero} onChange={(e) => set('numero', e.target.value)} /></Campo>
           <Campo etiqueta="Fecha" className="medio"><input type="date" value={f.fecha} onChange={(e) => set('fecha', e.target.value)} /></Campo>
         </div>
-        <p style={{ margin: '14px 0 8px', color: 'var(--tinta-suave)' }}>
+        <p style={{ margin: '14px 0 8px', color: 'var(--texto-suave)' }}>
           Para cada línea elige el insumo y cuánto trae cada unidad facturada. Ej.: 1 botella trae 750 ml; 1 caja trae 24 unidades. {ivaCosto ? 'El IVA se suma al costo.' : 'El costo no incluye IVA.'}
         </p>
         <div className="tabla-caja">

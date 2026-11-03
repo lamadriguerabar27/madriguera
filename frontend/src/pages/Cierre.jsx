@@ -4,7 +4,7 @@ import { Campo, Cifra, Encabezado, useMensaje } from '../components/ui.jsx';
 import { fechaCorta, hoy, n, pct, pesos, rangoMes } from '../format.js';
 import { useApi } from '../hooks.js';
 
-const COLORES = ['var(--serie-1)', 'var(--serie-3)', 'var(--serie-4)', 'var(--serie-5)', '#5E8C7E', '#A7B88E'];
+const COLORES = ['var(--oro)', 'var(--serie-2)', 'var(--serie-4)', 'var(--serie-5)', '#9CCAD8', '#D8C9A6'];
 
 export function calcularReparto(bold, efectivo, pctCaja, bolsillos) {
   const caja = Math.round(efectivo * pctCaja) / 100;
@@ -18,9 +18,9 @@ export function calcularReparto(bold, efectivo, pctCaja, bolsillos) {
 export function BarraReparto({ r }) {
   if (!r.total) return null;
   const tramos = [
-    { nombre: 'Caja para vueltas', valor: r.caja, color: 'var(--maracuya)' },
+    { nombre: 'Caja para vueltas', valor: r.caja, color: 'var(--marfil)' },
     ...r.partes.map((p, i) => ({ nombre: p.nombre, valor: p.monto, color: COLORES[i % COLORES.length] })),
-    { nombre: 'Disponible en la cuenta', valor: r.disponible, color: '#C9D3C4' },
+    { nombre: 'Disponible en la cuenta', valor: r.disponible, color: 'var(--petroleo)' },
   ];
   return (
     <div>
@@ -38,10 +38,11 @@ export function BarraReparto({ r }) {
 
 export default function Cierre() {
   const [fecha, setFecha] = useState(hoy());
-  const [bold, setBold] = useState('');
-  const [efectivo, setEfectivo] = useState('');
+  const [modo, setModo] = useState('saldos');
+  const [v, setV] = useState({ inicioBold: '', inicioCaja: '', finalBold: '', finalCaja: '', bold: '', efectivo: '' });
   const [notas, setNotas] = useState('');
   const [existente, setExistente] = useState(null);
+  const [sug, setSug] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [mensaje, avisar] = useMensaje();
   const cfg = useApi('configuracion/');
@@ -49,19 +50,31 @@ export default function Cierre() {
   const mes = fecha.slice(0, 7);
   const { desde, hasta } = rangoMes(mes);
   const delMes = useApi(`cierres/?desde=${desde}&hasta=${hasta}`);
+  const cambia = (k) => (e) => setV({ ...v, [k]: e.target.value });
+  const texto = (x) => (x == null ? '' : String(n(x)));
 
   useEffect(() => {
     let vivo = true;
-    api(`cierres/?fecha=${fecha}`).then((lista) => {
+    Promise.all([api(`cierres/?fecha=${fecha}`), api(`cierres/sugerencia/?fecha=${fecha}`)]).then(([lista, s]) => {
       if (!vivo) return;
       const c = lista[0] || null;
       setExistente(c);
-      setBold(c ? String(n(c.ventas_bold)) : '');
-      setEfectivo(c ? String(n(c.efectivo)) : '');
+      setSug(s);
       setNotas(c?.notas || '');
+      if (c) {
+        const conSaldos = c.final_bold != null || c.final_caja != null;
+        setModo(conSaldos ? 'saldos' : 'ventas');
+        setV({ inicioBold: texto(c.inicio_bold), inicioCaja: texto(c.inicio_caja), finalBold: texto(c.final_bold), finalCaja: texto(c.final_caja), bold: texto(c.ventas_bold), efectivo: texto(c.efectivo) });
+      } else {
+        setV({ inicioBold: '', inicioCaja: s.inicio_caja != null ? String(s.inicio_caja) : '', finalBold: '', finalCaja: '', bold: '', efectivo: '' });
+      }
     }).catch(() => {});
     return () => { vivo = false; };
   }, [fecha]);
+
+  const egresosHoy = n(sug?.egresos_caja_hoy);
+  const ventasBold = modo === 'saldos' ? (v.finalBold === '' ? 0 : n(v.finalBold) - n(v.inicioBold)) : n(v.bold);
+  const ventasEf = modo === 'saldos' ? (v.finalCaja === '' ? 0 : n(v.finalCaja) - n(v.inicioCaja) + egresosHoy) : n(v.efectivo);
 
   const r = useMemo(() => {
     if (!cfg.datos || !bols.datos) return null;
@@ -69,15 +82,21 @@ export default function Cierre() {
     const lista = existente
       ? existente.repartos.map((x) => ({ nombre: x.nombre, porcentaje: x.porcentaje }))
       : bols.datos.filter((b) => b.activo);
-    return { ...calcularReparto(n(bold), n(efectivo), pctCaja, lista), pctCaja };
-  }, [cfg.datos, bols.datos, existente, bold, efectivo]);
+    const base = calcularReparto(Math.max(ventasBold, 0), Math.max(ventasEf, 0), pctCaja, lista);
+    const queda = modo === 'saldos' && v.finalCaja !== '' ? n(v.finalCaja) - base.transferir : n(v.inicioCaja) + base.caja - egresosHoy;
+    return { ...base, pctCaja, queda };
+  }, [cfg.datos, bols.datos, existente, ventasBold, ventasEf, modo, v.finalCaja, v.inicioCaja, egresosHoy]);
 
   const guardar = async (e) => {
     e.preventDefault();
-    if (n(bold) + n(efectivo) <= 0) { avisar('mal', 'Escribe lo que entró por Bold, el efectivo o ambos.'); return; }
+    if (modo === 'saldos' && (ventasBold < 0 || ventasEf < 0)) { avisar('mal', 'Un saldo de cierre quedó menor que el de inicio. Revisa los valores.'); return; }
+    if (ventasBold + ventasEf <= 0) { avisar('mal', 'Todavía no hay ventas: revisa los valores del día.'); return; }
+    const datos = modo === 'saldos'
+      ? { fecha, notas, inicio_bold: n(v.inicioBold), inicio_caja: n(v.inicioCaja), final_bold: v.finalBold === '' ? n(v.inicioBold) : n(v.finalBold), final_caja: v.finalCaja === '' ? n(v.inicioCaja) : n(v.finalCaja) }
+      : { fecha, notas, ventas_bold: n(v.bold), efectivo: n(v.efectivo), inicio_bold: n(v.inicioBold), inicio_caja: n(v.inicioCaja), final_bold: null, final_caja: null };
     setGuardando(true);
     try {
-      const c = await api('cierres/', { metodo: 'POST', datos: { fecha, ventas_bold: n(bold), efectivo: n(efectivo), notas } });
+      const c = await api('cierres/', { metodo: 'POST', datos });
       setExistente(c);
       avisar('bien', `Cierre del ${fechaCorta(fecha)} guardado.`);
       delMes.recargar();
@@ -90,18 +109,48 @@ export default function Cierre() {
   return (
     <div className="pila">
       <Encabezado titulo="Cierre del día">
-        Al cerrar, escribe lo que entró por Bold y el efectivo que hay en caja. Te decimos cuánto dejar para vueltas, cuánto transferir y cómo se reparte.
+        Escribe con cuánto abrió el día en Bold y en caja, y cuánto hay al cerrar. Te decimos cuánto se vendió, cuánto dejar para vueltas, cuánto transferir y cómo se reparte.
       </Encabezado>
 
       <form className="tarjeta" onSubmit={guardar}>
-        <div className="form">
+        <div className="form" style={{ marginBottom: 14 }}>
           <Campo etiqueta="Fecha" className="medio"><input type="date" value={fecha} max={hoy()} onChange={(e) => e.target.value && setFecha(e.target.value)} /></Campo>
-          <Campo etiqueta="Ventas en la cuenta Bold" className="medio"><input type="number" min="0" step="100" inputMode="numeric" value={bold} onChange={(e) => setBold(e.target.value)} /></Campo>
-          <Campo etiqueta="Efectivo en caja" className="medio"><input type="number" min="0" step="100" inputMode="numeric" value={efectivo} onChange={(e) => setEfectivo(e.target.value)} /></Campo>
+          <div className="segmentado" role="group" aria-label="Cómo registrar">
+            <button type="button" className={modo === 'saldos' ? 'activo' : ''} onClick={() => setModo('saldos')}>Con saldos de apertura y cierre</button>
+            <button type="button" className={modo === 'ventas' ? 'activo' : ''} onClick={() => setModo('ventas')}>Solo ventas del día</button>
+          </div>
+        </div>
+        {modo === 'saldos' ? (
+          <div className="dos">
+            <div>
+              <h3 style={{ marginBottom: 8 }}>Al abrir</h3>
+              <div className="form">
+                <Campo etiqueta="Saldo en Bold" className="medio"><input type="number" min="0" step="any" inputMode="decimal" value={v.inicioBold} onChange={cambia('inicioBold')} placeholder="0" /></Campo>
+                <Campo etiqueta="Efectivo en caja" className="medio"><input type="number" min="0" step="any" inputMode="decimal" value={v.inicioCaja} onChange={cambia('inicioCaja')} placeholder="0" /></Campo>
+              </div>
+              {!existente && sug?.inicio_caja != null && <small style={{ color: 'var(--texto-suave)' }}>La caja se llenó con lo que debía quedar en el cierre del {fechaCorta(sug.fecha_anterior)}.</small>}
+            </div>
+            <div>
+              <h3 style={{ marginBottom: 8 }}>Al cerrar</h3>
+              <div className="form">
+                <Campo etiqueta="Saldo en Bold" className="medio"><input type="number" min="0" step="any" inputMode="decimal" value={v.finalBold} onChange={cambia('finalBold')} /></Campo>
+                <Campo etiqueta="Efectivo en caja" className="medio"><input type="number" min="0" step="any" inputMode="decimal" value={v.finalCaja} onChange={cambia('finalCaja')} /></Campo>
+              </div>
+              {egresosHoy > 0 && <small style={{ color: 'var(--texto-suave)' }}>Hoy se pagaron {pesos(egresosHoy)} de la caja; se suman a las ventas en efectivo.</small>}
+            </div>
+          </div>
+        ) : (
+          <div className="form">
+            <Campo etiqueta="Ventas en Bold" className="medio"><input type="number" min="0" step="any" inputMode="decimal" value={v.bold} onChange={cambia('bold')} /></Campo>
+            <Campo etiqueta="Ventas en efectivo" className="medio"><input type="number" min="0" step="any" inputMode="decimal" value={v.efectivo} onChange={cambia('efectivo')} /></Campo>
+            <Campo etiqueta="Efectivo en caja al abrir" className="medio"><input type="number" min="0" step="any" inputMode="decimal" value={v.inicioCaja} onChange={cambia('inicioCaja')} /></Campo>
+          </div>
+        )}
+        <div className="form" style={{ marginTop: 12 }}>
           <Campo etiqueta="Notas (opcional)" className="ancho"><input value={notas} maxLength={300} onChange={(e) => setNotas(e.target.value)} /></Campo>
           <button className="boton" disabled={guardando}>{existente ? 'Actualizar cierre' : 'Guardar cierre'}</button>
         </div>
-        {existente && <p style={{ marginTop: 10, color: 'var(--tinta-suave)', fontSize: '.88rem' }}>Este día ya tiene cierre (lo registró {existente.creado_por_nombre || 'alguien'}). Se recalcula con los porcentajes con que se guardó.</p>}
+        {existente && <p style={{ marginTop: 10, color: 'var(--texto-suave)', fontSize: '.86rem' }}>Este día ya tiene cierre (lo registró {existente.creado_por_nombre || 'alguien'}). Se recalcula con los porcentajes con que se guardó.</p>}
         <div style={{ marginTop: 10 }}>{mensaje}</div>
       </form>
 
@@ -110,6 +159,8 @@ export default function Cierre() {
           <div className="ticket">
             <h2 style={{ marginBottom: 8 }}>Qué hacer con la plata</h2>
             <div className="ticket-fila total"><span>Ventas del día</span><strong>{pesos(r.total)}</strong></div>
+            <div className="ticket-fila sub"><span>Por Bold</span><strong>{pesos(ventasBold)}</strong></div>
+            <div className="ticket-fila sub"><span>En efectivo</span><strong>{pesos(ventasEf)}</strong></div>
             <div className="ticket-fila"><span>Deja en caja para vueltas ({pct(r.pctCaja, 0)} del efectivo)</span><strong>{pesos(r.caja)}</strong></div>
             <div className="ticket-fila"><span>Transfiere a la cuenta</span><strong>{pesos(r.transferir)}</strong></div>
             <div className="ticket-fila"><span>Ingreso total a la cuenta (Bold + transferencia)</span><strong>{pesos(r.ingreso)}</strong></div>
@@ -117,6 +168,7 @@ export default function Cierre() {
               <div className="ticket-fila sub" key={p.nombre}><span>Bolsillo {p.nombre} ({pct(p.porcentaje, 1)})</span><strong>{pesos(p.monto)}</strong></div>
             ))}
             <div className="ticket-fila"><span>Queda disponible en la cuenta</span><strong>{pesos(r.disponible)}</strong></div>
+            <div className="ticket-fila total"><span>Debe quedar en caja después de transferir</span><strong>{pesos(r.queda)}</strong></div>
           </div>
           <div className="tarjeta">
             <h2>El 100% de las ventas</h2>
@@ -132,13 +184,13 @@ export default function Cierre() {
         {delMes.datos?.length ? (
           <div className="tabla-caja">
             <table>
-              <thead><tr><th>Fecha</th><th className="n">Bold</th><th className="n">Efectivo</th><th className="n">Total</th><th className="n">Caja vueltas</th><th className="n">A bolsillos</th><th className="n">Disponible</th></tr></thead>
+              <thead><tr><th>Fecha</th><th className="n">Bold</th><th className="n">Efectivo</th><th className="n">Total</th><th className="n">Caja vueltas</th><th className="n">A bolsillos</th><th className="n">Disponible</th><th className="n">Queda en caja</th></tr></thead>
               <tbody>
                 {delMes.datos.map((c) => (
                   <tr key={c.id} className="clic" onClick={() => setFecha(c.fecha)}>
                     <td>{fechaCorta(c.fecha)}</td><td className="n">{pesos(c.ventas_bold)}</td><td className="n">{pesos(c.efectivo)}</td>
                     <td className="n">{pesos(c.total_ventas)}</td><td className="n">{pesos(c.caja_vueltas)}</td>
-                    <td className="n">{pesos(c.a_bolsillos)}</td><td className="n">{pesos(c.disponible_cuenta)}</td>
+                    <td className="n">{pesos(c.a_bolsillos)}</td><td className="n">{pesos(c.disponible_cuenta)}</td><td className="n">{pesos(c.queda_en_caja)}</td>
                   </tr>
                 ))}
               </tbody>

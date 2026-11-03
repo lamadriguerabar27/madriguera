@@ -134,3 +134,48 @@ class FlujoCompletoTests(TestCase):
         self.assertAlmostEqual(float(r.data["costo_unitario"]), 3600.0, places=2)  # 84000 / (700/30)
         r = self.api.get(f"/api/insumos/{r.data['id']}/")
         self.assertAlmostEqual(r.data["presentaciones_en_stock"], 2.0, places=2)
+
+
+class CambiosNoviembreTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user("admin2", password="clave-segura-123")
+        self.admin.perfil.rol = Perfil.ADMIN
+        self.admin.perfil.save()
+        self.api = APIClient()
+        self.api.force_authenticate(self.admin)
+
+    def test_categorias_crear_renombrar_y_borrar_moviendo(self):
+        r = self.api.post("/api/categorias/", {"ambito": "producto", "nombre": "Shots"}, format="json")
+        self.assertEqual(r.status_code, 201, r.data)
+        shots = r.data
+        self.assertEqual(self.api.post("/api/categorias/", {"ambito": "producto", "nombre": "shots"}, format="json").status_code, 400)
+        p = self.api.post("/api/productos/", {"nombre": "Shot de tequila", "categoria": shots["slug"], "tipo": "reventa",
+                                               "costo_compra": 90000, "unidades_por_compra": 25, "precio_venta": 8000}, format="json")
+        self.assertEqual(p.status_code, 201, p.data)
+        self.assertEqual(p.data["categoria_nombre"], "Shots")
+        self.assertAlmostEqual(p.data["costeo"]["costo"], 3600.0)
+        self.assertAlmostEqual(p.data["costeo"]["margen_actual"], 55.0)
+        self.assertEqual(self.api.patch(f"/api/categorias/{shots['id']}/", {"nombre": "Shots y chupitos"}, format="json").status_code, 200)
+        r = self.api.delete(f"/api/categorias/{shots['id']}/")
+        self.assertEqual(r.status_code, 409)
+        otro = self.api.get("/api/categorias/?ambito=producto").data
+        destino = next(c for c in otro if c["slug"] == "otro")
+        self.assertEqual(self.api.delete(f"/api/categorias/{shots['id']}/?mover_a={destino['id']}").status_code, 204)
+        self.assertEqual(Producto.objects.get().categoria, "otro")
+        self.assertEqual(self.api.post("/api/productos/", {"nombre": "X", "categoria": "no-existe"}, format="json").status_code, 400)
+
+    def test_cierre_con_saldos_de_inicio_y_cierre(self):
+        self.api.post("/api/egresos/", {"fecha": "2026-11-04", "origen": "caja", "categoria": "otros", "descripcion": "Hielo", "valor": 4000}, format="json")
+        r = self.api.post("/api/cierres/", {"fecha": "2026-11-04", "inicio_bold": 50000, "inicio_caja": 100000,
+                                             "final_bold": 650000, "final_caja": 296000}, format="json")
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["ventas_bold"], 600000)
+        self.assertEqual(r.data["efectivo"], 200000)  # 296.000 − 100.000 + 4.000 de hielo
+        self.assertEqual(r.data["caja_vueltas"], 30000)
+        self.assertEqual(r.data["transferir"], 170000)
+        self.assertEqual(r.data["queda_en_caja"], 126000)  # 296.000 − 170.000
+        s = self.api.get("/api/cierres/sugerencia/?fecha=2026-11-05").data
+        self.assertEqual(s["inicio_caja"], 126000.0)
+        r = self.api.post("/api/cierres/", {"fecha": "2026-11-05", "inicio_caja": 126000, "final_caja": 100000}, format="json")
+        self.assertEqual(r.status_code, 400)

@@ -7,15 +7,21 @@ const corto = (v) => {
   if (a >= 1e3) return `$${Math.round(v / 1e3).toLocaleString('es-CO')} mil`;
   return `$${Math.round(v)}`;
 };
-const tip = { contentStyle: { borderRadius: 8, border: '1px solid #D7DDD3', fontSize: 13 }, formatter: (v) => pesos(v) };
-const ejeX = { tick: { fontSize: 12, fill: '#5B6B62' }, tickLine: false, axisLine: { stroke: '#D7DDD3' } };
-const ejeY = { tick: { fontSize: 12, fill: '#5B6B62' }, tickLine: false, axisLine: false, width: 70 };
+const tip = {
+  contentStyle: { borderRadius: 8, border: '1px solid #3A3222', background: '#13151C', color: '#F1E5CE', fontSize: 13 },
+  labelStyle: { color: '#E2C27E' },
+  itemStyle: { color: '#F1E5CE' },
+  cursor: { fill: 'rgba(199,160,90,0.08)' },
+  formatter: (v) => pesos(v),
+};
+const ejeX = { tick: { fontSize: 12, fill: '#A99F8D' }, tickLine: false, axisLine: { stroke: '#2A2F3D' } };
+const ejeY = { tick: { fontSize: 12, fill: '#A99F8D' }, tickLine: false, axisLine: false, width: 70 };
 
 export function Barras({ datos, x, series, alto = 260, apiladas = false, horizontal = false, formato = corto }) {
   return (
     <ResponsiveContainer width="100%" height={alto}>
       <BarChart data={datos} layout={horizontal ? 'vertical' : 'horizontal'} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-        <CartesianGrid stroke="#E7ECE4" vertical={horizontal} horizontal={!horizontal} />
+        <CartesianGrid stroke="#232836" vertical={horizontal} horizontal={!horizontal} />
         {horizontal ? (
           <>
             <XAxis type="number" {...ejeX} tickFormatter={formato} />
@@ -41,7 +47,7 @@ export function Lineas({ datos, x, series, alto = 260 }) {
   return (
     <ResponsiveContainer width="100%" height={alto}>
       <LineChart data={datos} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-        <CartesianGrid stroke="#E7ECE4" vertical={false} />
+        <CartesianGrid stroke="#232836" vertical={false} />
         <XAxis dataKey={x} {...ejeX} />
         <YAxis {...ejeY} tickFormatter={corto} />
         <Tooltip {...tip} />

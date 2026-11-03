@@ -5,7 +5,7 @@ import { useAuth } from '../auth.jsx';
 const GRUPOS = [
   { titulo: 'Día a día', enlaces: [['/', 'Cierre del día'], ['/egresos', 'Egresos'], ['/ventas', 'Ventas por producto']] },
   { titulo: 'Análisis', enlaces: [['/flujo', 'Flujo de caja'], ['/analitica', 'Productos más vendidos'], ['/proyeccion', 'Metas y rendimiento']] },
-  { titulo: 'Costos', enlaces: [['/carta', 'Carta y costeo'], ['/insumos', 'Insumos e inventario'], ['/facturas', 'Facturas']] },
+  { titulo: 'Costos', enlaces: [['/carta', 'Carta, costos y precios'], ['/insumos', 'Insumos e inventario'], ['/facturas', 'Facturas']] },
 ];
 
 export default function Layout() {
@@ -13,7 +13,7 @@ export default function Layout() {
   const [abierta, setAbierta] = useState(false);
   const { pathname } = useLocation();
   const grupos = esAdmin
-    ? [...GRUPOS, { titulo: 'Administración', enlaces: [['/configuracion', 'Configuración'], ['/usuarios', 'Usuarios']] }]
+    ? [...GRUPOS, { titulo: 'Administración', enlaces: [['/configuracion', 'Configuración'], ['/categorias', 'Categorías'], ['/usuarios', 'Usuarios']] }]
     : GRUPOS;
   const actual = grupos.flatMap((g) => g.enlaces).find(([to]) => to === pathname)?.[1] || 'La Madriguera';
 
@@ -21,16 +21,16 @@ export default function Layout() {
     <div className="app">
       <div className="barra-movil">
         <button type="button" onClick={() => setAbierta(true)} aria-label="Abrir menú">Menú</button>
+        <img src="/jaguar.webp" alt="" />
         <strong>{actual}</strong>
       </div>
       {abierta && <div className="velo" onClick={() => setAbierta(false)} />}
       <nav className={`lateral ${abierta ? 'abierta' : ''}`} aria-label="Secciones">
         <div className="marca">
-          <span aria-hidden="true" style={{ fontSize: 26 }}>🐇</span>
-          <div>
-            <strong>La Madriguera</strong>
-            <small>Caja, costos y ventas</small>
-          </div>
+          <img src="/jaguar.webp" alt="Jaguar de La Madriguera" />
+          <span className="script dorado">La</span>
+          <strong className="dorado">MADRIGUERA</strong>
+          <small className="espaciado">Café · Bar · Bogotá</small>
         </div>
         {grupos.map((g) => (
           <div className="grupo-nav" key={g.titulo}>
@@ -43,9 +43,7 @@ export default function Layout() {
           </div>
         ))}
         <div className="pie">
-          <NavLink to="/perfil" onClick={() => setAbierta(false)} style={{ color: '#E6EEE9' }}>
-            {usuario?.first_name || usuario?.username}
-          </NavLink>
+          <NavLink to="/perfil" onClick={() => setAbierta(false)}>{usuario?.first_name || usuario?.username}</NavLink>
           <div>{esAdmin ? 'Administrador' : 'Colaborador'} · <button type="button" onClick={salir}>Salir</button></div>
         </div>
       </nav>

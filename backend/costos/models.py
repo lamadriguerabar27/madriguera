@@ -14,13 +14,13 @@ CANTIDAD = {"max_digits": 14, "decimal_places": 3}
 class Insumo(models.Model):
     """Todo lo que se compra y se usa para vender: licores, cervezas, fruta, servilletas, pinchos, envío…"""
 
-    CATEGORIAS = [
+    CATEGORIAS_INICIALES = [
         ("licor", "Licor"), ("cerveza", "Cerveza"), ("bebida", "Bebida"), ("fruta", "Fruta y decoración"),
         ("desechable", "Desechables"), ("snack", "Snacks y comida"), ("servicio", "Servicio (envío, etc.)"), ("otro", "Otro"),
     ]
 
     nombre = models.CharField(max_length=120, unique=True)
-    categoria = models.CharField(max_length=20, choices=CATEGORIAS, default="otro")
+    categoria = models.CharField(max_length=40, default="otro")
     unidad = models.CharField(max_length=10, choices=UNIDADES, default="unidad", help_text="Unidad en la que se usa y se cuenta el stock.")
     costo_unitario = models.DecimalField(default=0, validators=[MinValueValidator(0)], help_text="Costo por unidad de uso.", **COSTO)
     contenido_presentacion = models.DecimalField(
@@ -102,10 +102,21 @@ class AliasProveedor(models.Model):
 class Producto(models.Model):
     """Lo que se vende en la carta: un cóctel, una cerveza, un snack…"""
 
-    CATEGORIAS = [("coctel", "Cóctel"), ("cerveza", "Cerveza"), ("bebida", "Bebida"), ("snack", "Snack"), ("otro", "Otro")]
+    CATEGORIAS_INICIALES = [("coctel", "Cóctel"), ("cerveza", "Cerveza"), ("bebida", "Bebida"), ("snack", "Snack"), ("otro", "Otro")]
+    RECETA, REVENTA = "receta", "reventa"
 
     nombre = models.CharField(max_length=120, unique=True)
-    categoria = models.CharField(max_length=20, choices=CATEGORIAS, default="coctel")
+    categoria = models.CharField(max_length=40, default="coctel")
+    tipo = models.CharField(
+        max_length=10, default=RECETA,
+        choices=[(RECETA, "Se prepara con insumos"), (REVENTA, "Se compra y se vende tal cual")],
+    )
+    costo_compra = models.DecimalField(
+        null=True, blank=True, validators=[MinValueValidator(0)], help_text="Lo que pagas por la presentación (ej. la caja).", **DINERO
+    )
+    unidades_por_compra = models.DecimalField(
+        default=1, validators=[MinValueValidator(Decimal("0.001"))], help_text="Cuántas unidades trae esa presentación.", **CANTIDAD
+    )
     descripcion = models.CharField(max_length=300, blank=True)
     precio_venta = models.DecimalField(default=0, validators=[MinValueValidator(0)], **DINERO)
     margen_objetivo = models.DecimalField(
@@ -121,8 +132,14 @@ class Producto(models.Model):
     def __str__(self):
         return self.nombre
 
+    def costo_directo(self):
+        if self.costo_compra is None:
+            return Decimal(0)
+        return Decimal(self.costo_compra) / Decimal(self.unidades_por_compra or 1)
+
     def costo(self):
-        return sum((i.cantidad * i.insumo.costo_unitario for i in self.receta.select_related("insumo")), Decimal(0))
+        receta = sum((i.cantidad * i.insumo.costo_unitario for i in self.receta.select_related("insumo")), Decimal(0))
+        return self.costo_directo() + receta
 
     def margen_usado(self, cfg):
         return self.margen_objetivo if self.margen_objetivo is not None else cfg.margen_objetivo

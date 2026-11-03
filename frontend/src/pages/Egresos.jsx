@@ -63,7 +63,7 @@ export default function Egresos() {
             </select>
           </Campo>
           <Campo etiqueta="Para qué" className="ancho"><input value={f.descripcion} maxLength={200} onChange={cambia('descripcion')} required placeholder="Ej.: hielo, pago de luz, limones" /></Campo>
-          <Campo etiqueta="Valor" className="medio"><input type="number" min="1" step="100" inputMode="numeric" value={f.valor} onChange={cambia('valor')} required /></Campo>
+          <Campo etiqueta="Valor" className="medio"><input type="number" min="0" step="any" inputMode="numeric" value={f.valor} onChange={cambia('valor')} required /></Campo>
           <button className="boton">Registrar egreso</button>
         </div>
         <div style={{ marginTop: 10 }}>{mensaje}</div>

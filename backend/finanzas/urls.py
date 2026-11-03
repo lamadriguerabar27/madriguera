@@ -5,6 +5,7 @@ from . import views
 
 router = DefaultRouter()
 router.register("bolsillos", views.BolsilloViewSet, basename="bolsillos")
+router.register("categorias", views.CategoriaViewSet, basename="categorias")
 router.register("cierres", views.CierreViewSet, basename="cierres")
 router.register("egresos", views.EgresoViewSet, basename="egresos")
 

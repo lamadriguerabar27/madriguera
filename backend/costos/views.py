@@ -9,7 +9,8 @@ from rest_framework.response import Response
 
 from cuentas.models import es_admin
 from cuentas.permissions import EsAdmin, LecturaOAdmin, RegistroColaborador
-from finanzas.models import Configuracion, Egreso
+from finanzas.models import Categoria, Configuracion, Egreso
+from finanzas.views import _categorias
 
 from . import services
 from .factura_parser import FacturaInvalida, leer_factura
@@ -251,6 +252,6 @@ def analitica_productos(request):
 def opciones(request):
     return Response({
         "unidades": [{"valor": k, "nombre": v} for k, v in UNIDADES],
-        "categorias_insumo": [{"valor": k, "nombre": v} for k, v in Insumo.CATEGORIAS],
-        "categorias_producto": [{"valor": k, "nombre": v} for k, v in Producto.CATEGORIAS],
+        "categorias_insumo": _categorias(Categoria.INSUMO),
+        "categorias_producto": _categorias(Categoria.PRODUCTO),
     })

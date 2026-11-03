@@ -1,15 +1,46 @@
 from datetime import date
 
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
 from cuentas.models import es_admin
 from cuentas.permissions import LecturaOAdmin, RegistroColaborador
 
 from . import services
-from .models import Bolsillo, Cierre, Configuracion, Egreso
-from .serializers import BolsilloSerializer, CierreSerializer, ConfiguracionSerializer, EgresoSerializer
+from .models import Bolsillo, Categoria, Cierre, Configuracion, Egreso
+from .serializers import BolsilloSerializer, CategoriaSerializer, CierreSerializer, ConfiguracionSerializer, EgresoSerializer
+
+
+def _categorias(ambito):
+    return [{"valor": c.slug, "nombre": c.nombre} for c in Categoria.objects.filter(ambito=ambito)]
+
+
+class CategoriaViewSet(viewsets.ModelViewSet):
+    serializer_class = CategoriaSerializer
+    permission_classes = [LecturaOAdmin]
+
+    def get_queryset(self):
+        qs = Categoria.objects.all()
+        if ambito := self.request.query_params.get("ambito"):
+            qs = qs.filter(ambito=ambito)
+        return qs
+
+    def destroy(self, request, *args, **kwargs):
+        """Si la categoría está en uso, hay que indicar a cuál mover sus registros (?mover_a=<id>)."""
+        cat = self.get_object()
+        usos = services.usos_categoria(cat)
+        if usos:
+            destino_id = request.query_params.get("mover_a")
+            destino = Categoria.objects.filter(pk=destino_id, ambito=cat.ambito).exclude(pk=cat.pk).first() if destino_id else None
+            if not destino:
+                return Response(
+                    {"detail": f"Esta categoría tiene {usos} registro(s). Elige a qué categoría moverlos antes de borrarla.", "en_uso": usos},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            services.mover_categoria(cat, destino)
+        cat.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 def _fecha(request, nombre):
@@ -81,6 +112,18 @@ class CierreViewSet(viewsets.ModelViewSet):
         cierre = services.guardar_cierre(Cierre(**s.validated_data), request.user, recalcular_porcentajes=True)
         return Response(self.get_serializer(cierre).data, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=["get"])
+    def sugerencia(self, request):
+        """Saldo de caja con el que debería abrir un día: lo que quedó en caja en el cierre anterior."""
+        fecha = _fecha(request, "fecha") or date.today()
+        previo = Cierre.objects.filter(fecha__lt=fecha).order_by("-fecha").first()
+        return Response({
+            "fecha_anterior": previo.fecha if previo else None,
+            "inicio_caja": float(previo.queda_en_caja) if previo else None,
+            "final_bold_anterior": float(previo.final_bold) if previo and previo.final_bold is not None else None,
+            "egresos_caja_hoy": float(services.egresos_caja(fecha)),
+        })
+
     def perform_update(self, serializer):
         cierre = serializer.instance
         for k, v in serializer.validated_data.items():
@@ -131,6 +174,6 @@ def reporte_proyeccion(request):
 @api_view(["GET"])
 def opciones(request):
     return Response({
-        "categorias_egreso": [{"valor": k, "nombre": v} for k, v in Egreso.CATEGORIAS],
+        "categorias_egreso": _categorias(Categoria.EGRESO),
         "origenes_egreso": [{"valor": k, "nombre": v} for k, v in Egreso.ORIGENES],
     })

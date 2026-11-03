@@ -8,7 +8,7 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from finanzas.models import Configuracion, Egreso
+from finanzas.models import Categoria, Configuracion, Egreso
 
 from .models import AliasProveedor, Factura, Insumo, MovimientoInventario, Producto, VentaProducto, precio_sugerido
 from .unidades import ConversionError, convertir
@@ -115,7 +115,7 @@ def registrar_ventas(fecha, items, usuario):
     creadas = []
     for producto, cantidad, precio in items:
         receta = list(producto.receta.select_related("insumo"))
-        costo = sum((r.cantidad * r.insumo.costo_unitario for r in receta), Decimal(0))
+        costo = producto.costo_directo() + sum((r.cantidad * r.insumo.costo_unitario for r in receta), Decimal(0))
         venta = VentaProducto.objects.create(
             fecha=fecha, producto=producto, cantidad=cantidad,
             precio_unitario=precio if precio is not None else producto.precio_venta,
@@ -161,7 +161,8 @@ def ajustar_stock(insumo, stock_real, nota, usuario):
 def costeo_producto(producto, cfg=None):
     cfg = cfg or Configuracion.actual()
     lineas = []
-    costo = Decimal(0)
+    directo = producto.costo_directo()
+    costo = directo
     for r in producto.receta.select_related("insumo"):
         c = r.cantidad * r.insumo.costo_unitario
         costo += c
@@ -171,6 +172,7 @@ def costeo_producto(producto, cfg=None):
     precio = Decimal(producto.precio_venta)
     return {
         "costo": float(costo),
+        "costo_directo": float(directo),
         "margen_objetivo": float(margen),
         "precio_sugerido": float(precio_sugerido(costo, margen, cfg.redondeo_precio)),
         "utilidad": float(precio - costo),
@@ -188,7 +190,7 @@ def analitica(desde=None, hasta=None):
     por_producto = defaultdict(lambda: {"cantidad": 0, "ingresos": 0.0, "costo": 0.0})
     por_categoria = defaultdict(lambda: {"cantidad": 0, "ingresos": 0.0, "costo": 0.0})
     serie = defaultdict(lambda: {"ingresos": 0.0, "costo": 0.0, "cantidad": 0})
-    nombres_cat = dict(Producto.CATEGORIAS)
+    nombres_cat = Categoria.nombres(Categoria.PRODUCTO)
     info = {}
     for v in ventas:
         ingreso = float(v.precio_unitario) * v.cantidad
