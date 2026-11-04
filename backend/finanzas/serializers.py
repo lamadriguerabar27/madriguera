@@ -142,8 +142,11 @@ class EgresoSerializer(CategoriaCampoMixin, serializers.ModelSerializer):
         model = Egreso
         fields = [
             "id", "fecha", "origen", "bolsillo", "origen_nombre", "categoria", "categoria_nombre", "descripcion",
-            "valor", "factura", "creado_por_nombre", "creado",
+            "valor", "factura", "trabajador", "trabajador_nombre", "socio", "socio_nombre", "creado_por_nombre", "creado",
         ]
+
+    trabajador_nombre = serializers.CharField(source="trabajador.nombre", read_only=True, default=None)
+    socio_nombre = serializers.CharField(source="socio.nombre", read_only=True, default=None)
 
     def get_origen_nombre(self, obj):
         if obj.origen == Egreso.BOLSILLO and obj.bolsillo:

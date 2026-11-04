@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "cuentas",
     "finanzas",
     "costos",
+    "personal",
 ]
 
 MIDDLEWARE = [
@@ -83,6 +84,9 @@ LANGUAGE_CODE = "es-co"
 TIME_ZONE = "America/Bogota"
 USE_I18N = True
 USE_TZ = True
+
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5-5")
 
 STATIC_URL = "static/"
 # La app de React compilada (npm run build) se copia aquí en la imagen Docker y Django la sirve.

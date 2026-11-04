@@ -1,6 +1,9 @@
 from django.contrib import admin
 
-from .models import Bolsillo, Cierre, CierreBolsillo, Configuracion, Egreso
+from .models import Bolsillo, Categoria, Cierre, CierreBolsillo, Configuracion, Egreso, VentaBold
+
+admin.site.register(Categoria)
+admin.site.register(VentaBold)
 
 admin.site.register(Configuracion)
 admin.site.register(Bolsillo)

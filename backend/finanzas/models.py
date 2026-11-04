@@ -146,6 +146,8 @@ class Egreso(models.Model):
     descripcion = models.CharField(max_length=200)
     valor = models.DecimalField(validators=[MinValueValidator(Decimal("0.01"))], **DINERO)
     factura = models.ForeignKey("costos.Factura", null=True, blank=True, on_delete=models.SET_NULL, related_name="egresos")
+    trabajador = models.ForeignKey("personal.Trabajador", null=True, blank=True, on_delete=models.SET_NULL, related_name="pagos")
+    socio = models.ForeignKey("personal.Socio", null=True, blank=True, on_delete=models.SET_NULL, related_name="retiros")
     creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
     creado = models.DateTimeField(auto_now_add=True)
 
@@ -154,3 +156,19 @@ class Egreso(models.Model):
 
     def __str__(self):
         return f"{self.fecha} {self.descripcion} {self.valor}"
+
+
+class VentaBold(models.Model):
+    """Transacción importada del historial de ventas de Bold."""
+
+    fecha = models.DateField()
+    hora = models.TimeField(null=True, blank=True)
+    valor = models.DecimalField(**DINERO)
+    referencia = models.CharField(max_length=120, blank=True, db_index=True)
+    estado = models.CharField(max_length=60, blank=True)
+    metodo = models.CharField(max_length=60, blank=True)
+    importacion = models.CharField(max_length=40, db_index=True)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-fecha", "-hora"]

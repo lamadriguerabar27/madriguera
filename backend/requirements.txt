@@ -7,3 +7,5 @@ psycopg[binary]>=3.2,<4
 whitenoise>=6.7,<7
 gunicorn>=23,<24
 defusedxml>=0.7,<1
+openpyxl>=3.1,<4
+pypdf>=4.3,<6

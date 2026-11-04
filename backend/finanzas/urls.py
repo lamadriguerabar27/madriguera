@@ -16,4 +16,7 @@ urlpatterns = [
     path("reportes/saldos/", views.reporte_saldos),
     path("reportes/historico/", views.reporte_historico),
     path("reportes/proyeccion/", views.reporte_proyeccion),
+    path("bold/importar/", views.bold_importar),
+    path("bold/ventas/", views.bold_ventas),
+    path("bold/importaciones/<str:lote>/", views.bold_borrar_importacion),
 ] + router.urls

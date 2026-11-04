@@ -66,17 +66,19 @@ class InsumoSerializer(CategoriaCampoMixin, serializers.ModelSerializer):
 
 class StockInicialMixin(serializers.Serializer):
     stock_inicial = serializers.DecimalField(max_digits=14, decimal_places=3, required=False, write_only=True)
+    fecha_stock = serializers.DateField(required=False, write_only=True)
 
 
 class InsumoCrearSerializer(InsumoSerializer, StockInicialMixin):
     class Meta(InsumoSerializer.Meta):
-        fields = InsumoSerializer.Meta.fields + ["stock_inicial"]
+        fields = InsumoSerializer.Meta.fields + ["stock_inicial", "fecha_stock"]
 
     def create(self, validated_data):
         inicial = validated_data.pop("stock_inicial", None)
+        fecha = validated_data.pop("fecha_stock", None)
         insumo = super().create(validated_data)
         if inicial:
-            services.ajustar_stock(insumo, inicial, "Stock inicial", self.context["request"].user)
+            services.ajustar_stock(insumo, inicial, "Stock inicial", self.context["request"].user, fecha=fecha)
         return insumo
 
 

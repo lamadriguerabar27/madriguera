@@ -144,7 +144,7 @@ def borrar_venta(venta):
 
 
 @transaction.atomic
-def ajustar_stock(insumo, stock_real, nota, usuario):
+def ajustar_stock(insumo, stock_real, nota, usuario, fecha=None):
     insumo = Insumo.objects.select_for_update().get(pk=insumo.pk)
     diferencia = Decimal(stock_real) - insumo.stock
     if diferencia == 0:
@@ -152,7 +152,7 @@ def ajustar_stock(insumo, stock_real, nota, usuario):
     insumo.stock = Decimal(stock_real)
     insumo.save(update_fields=["stock", "actualizado"])
     MovimientoInventario.objects.create(
-        insumo=insumo, fecha=timezone.localdate(), tipo=MovimientoInventario.AJUSTE, cantidad=diferencia,
+        insumo=insumo, fecha=fecha or timezone.localdate(), tipo=MovimientoInventario.AJUSTE, cantidad=diferencia,
         costo_unitario=insumo.costo_unitario, referencia=(nota or "Conteo físico")[:200], creado_por=usuario,
     )
     return insumo
