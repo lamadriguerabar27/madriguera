@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: madriguera
+      POSTGRES_USER: madriguera
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cambia-esta-clave}
+    volumes:
+      - datos_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U madriguera"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://madriguera:${POSTGRES_PASSWORD:-cambia-esta-clave}@db:5432/madriguera
+    ports:
+      - "8000:8000"
+    volumes:
+      - archivos:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  datos_db:
+  archivos:
